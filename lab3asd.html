@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>ЛР №3 - Графи - ІМ-53</title>
+    <style>
+        body { 
+            background: #121212; 
+            color: #e0e0e0; 
+            font-family: 'Segoe UI', sans-serif; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            padding: 20px; 
+            margin: 0;
+        }
+
+
+        .container { display: flex; gap: 40px; flex-wrap: wrap; justify-content: center; margin-top: 20px; }
+        .canvas-block { text-align: center; }
+        canvas { 
+            background: #1e1e1e; 
+            border: 1px solid #333; 
+            border-radius: 12px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
+        }
+        h2 { color: #00d2ff; margin-bottom: 10px; font-weight: 300; }
+        h3 { color: #818cf8; margin-bottom: 15px; }
+        .hint { margin-top: 20px; color: #666; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+
+    <h2>Лабораторна робота №3 | Варіант 9</h2>
+    <p>Студентки групи ІМ-53</p>
+
+    <div class="container">
+        <div class="canvas-block">
+            <h3>Напрямлений граф</h3>
+            <canvas id="dirCanvas" width="500" height="500"></canvas>
+        </div>
+
+        <div class="canvas-block">
+            <h3>Ненапрямлений граф</h3>
+            <canvas id="undirCanvas" width="500" height="500"></canvas>
+        </div>
+    </div>
+
+    
+
+    <script>
+        const n = 11; 
+        const seed = 5309; 
+        const nodeRadius = 18;
+
+     
+        const rand = (function(s) {
+            return function() {
+                s = (s * 16807) % 2147483647;
+                return (s - 1) / 2147483646;
+            };
+        })(seed);
+
+        
+        const A = [];
+        const A_undir = [];
+        const k = 1.0 - 0 * 0.01 - 9 * 0.005 - 0.15;
+
+        for (let i = 0; i < n; i++) {
+            A[i] = [];
+            for (let j = 0; j < n; j++) {
+                A[i][j] = (rand() * 2.0 * k) >= 1.0 ? 1 : 0;
+            }
+        }
+
+        for (let i = 0; i < n; i++) {
+            A_undir[i] = [];
+            for (let j = 0; j < n; j++) {
+                A_undir[i][j] = (A[i][j] || A[j][i]) ? 1 : 0;
+            }
+        }
+
+       
+        console.group("%c МАТРИЦІ ВАРІАНТ 9 ", "background: #333; color: #00d2ff; padding: 5px;");
+        console.log("Напрямлена матриця (A):");
+        console.table(A);
+        console.log("Ненапрямлена матриця (A'):");
+        console.table(A_undir);
+        console.groupEnd();
+
+        
+        function drawGraph(canvasId, matrix, isOriented) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            const center = canvas.width / 2;
+            const radius = 180;
+            const pts = [];
+
+            for (let i = 0; i < n; i++) {
+                const angle = (2 * Math.PI * i) / n;
+                pts.push({ x: center + radius * Math.cos(angle), y: center + radius * Math.sin(angle) });
+            }
+
+          
+            matrix.forEach((row, i) => {
+                row.forEach((val, j) => {
+                    if (val) {
+                        const s = pts[i], e = pts[j];
+                        const ang = Math.atan2(e.y - s.y, e.x - s.x);
+                        ctx.beginPath();
+                        ctx.strokeStyle = isOriented ? "rgba(0, 210, 255, 0.5)" : "rgba(129, 140, 248, 0.5)";
+                        ctx.lineWidth = 1.5;
+
+                        if (i === j) { 
+                            ctx.arc(s.x + 12, s.y - 12, 10, 0, Math.PI * 2);
+                        } else if (isOriented && matrix[j][i] && i < j) { 
+                            const mx = (s.x + e.x) / 2, my = (s.y + e.y) / 2;
+                            const cpx = mx + 30 * Math.cos(ang + Math.PI/2);
+                            const cpy = my + 30 * Math.sin(ang + Math.PI/2);
+                            ctx.moveTo(s.x, s.y);
+                            ctx.quadraticCurveTo(cpx, cpy, e.x, e.y);
+                        } else {
+                            ctx.moveTo(s.x, s.y);
+                            ctx.lineTo(e.x, e.y);
+                        }
+                        ctx.stroke();
+
+                        if (isOriented && i !== j) { // Стрілки
+                            drawArr(ctx, e.x - nodeRadius * Math.cos(ang), e.y - nodeRadius * Math.sin(ang), ang);
+                        }
+                    }
+                });
+            });
+
+            
+            pts.forEach((p, i) => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, nodeRadius, 0, Math.PI * 2);
+                ctx.fillStyle = "#252525"; ctx.fill();
+                ctx.strokeStyle = isOriented ? "#00d2ff" : "#818cf8";
+                ctx.stroke();
+                ctx.fillStyle = "#fff";
+                ctx.font = "11px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                ctx.fillText(i + 1, p.x, p.y);
+            });
+        }
+
+        function drawArr(ctx, x, y, a) {
+            ctx.save(); ctx.translate(x, y); ctx.rotate(a);
+            ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-10, -4); ctx.lineTo(-10, 4);
+            ctx.fillStyle = "#00d2ff"; ctx.fill(); ctx.restore();
+        }
+
+        drawGraph('dirCanvas', A, true);
+        drawGraph('undirCanvas', A_undir, false);
+    </script>
+</body>
+</html>
