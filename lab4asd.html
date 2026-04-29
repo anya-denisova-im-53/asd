@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>ЛР №4 - Характеристики графа - ІМ-53</title>
+    <style>
+        body { 
+            background: #111; 
+            color: #eee; 
+            font-family: 'Segoe UI', sans-serif; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            padding: 20px; 
+        }
+        canvas { 
+            background: #1a1a1a; 
+            border: 1px solid #333; 
+            border-radius: 15px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
+        }
+        h2 { color: #00d2ff; margin-bottom: 5px; }
+        .desc { color: #888; margin-bottom: 20px; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+
+    <h2>Лабораторна робота №4</h2>
+    <p class="desc">Група: ІМ-53 | Студент: №9 </p>
+
+    <canvas id="graphCanvas" width="600" height="600"></canvas>
+
+    <script>
+        const n = 11;
+        const seed = 5309; 
+        const nodeRadius = 20;
+
+        
+        const rand = (function(s) {
+            return function() {
+                s = (s * 16807) % 2147483647;
+                return (s - 1) / 2147483646;
+            };
+        })(seed);
+
+
+        const A = [];
+        const k = 1.0 - 0 * 0.01 - 9 * 0.005 - 0.15;
+        for (let i = 0; i < n; i++) {
+            A[i] = [];
+            for (let j = 0; j < n; j++) {
+                A[i][j] = (rand() * 2.0 * k) >= 1.0 ? 1 : 0;
+            }
+        }
+
+      
+
+       
+        const degrees = A.map((row, i) => {
+            const outDeg = row.reduce((a, b) => a + b, 0);
+            const inDeg = A.reduce((sum, r) => sum + r[i], 0);
+            return { "Вершина": i + 1, "Вихід (d+)": outDeg, "Захід (d-)": inDeg, "Сума": outDeg + inDeg };
+        });
+
+        
+        let R = A.map(row => [...row]);
+        for (let i = 0; i < n; i++) R[i][i] = 1; 
+
+        for (let k_step = 0; k_step < n; k_step++) {
+            for (let i = 0; i < n; i++) {
+                for (let j = 0; j < n; j++) {
+                    R[i][j] = R[i][j] || (R[i][k_step] && R[k_step][j]);
+                }
+            }
+        }
+
+        
+        const S = [];
+        for (let i = 0; i < n; i++) {
+            S[i] = [];
+            for (let j = 0; j < n; j++) {
+                S[i][j] = (R[i][j] && R[j][i]) ? 1 : 0;
+            }
+        }
+
+   
+        const components = [];
+        const checked = new Array(n).fill(false);
+        for (let i = 0; i < n; i++) {
+            if (!checked[i]) {
+                const c = [];
+                for (let j = 0; j < n; j++) {
+                    if (S[i][j]) {
+                        c.push(j + 1);
+                        checked[j] = true;
+                    }
+                }
+                if (c.length > 0) components.push(c);
+            }
+        }
+
+      
+        console.group("%c АНАЛІЗ ГРАФА (ВАРІАНТ 9) ", "background: #00d2ff; color: #000; padding: 5px;");
+        console.log("1. Степені вершин:");
+        console.table(degrees);
+        console.log("2. Матриця досяжності (R):");
+        console.table(R);
+        console.log("3. Матриця сильної зв'язності (S):");
+        console.table(S);
+        console.log("4. Компоненти сильної зв'язності:", components);
+        console.groupEnd();
+
+        
+        const canvas = document.getElementById('graphCanvas');
+        const ctx = canvas.getContext('2d');
+        const pts = [];
+        for (let i = 0; i < n; i++) {
+            const angle = (2 * Math.PI * i) / n;
+            pts.push({ x: 300 + 240 * Math.cos(angle), y: 300 + 240 * Math.sin(angle) });
+        }
+
+        
+        ctx.lineWidth = 1.5;
+        A.forEach((row, i) => {
+            row.forEach((val, j) => {
+                if (val) {
+                    const s = pts[i], e = pts[j];
+                    const ang = Math.atan2(e.y - s.y, e.x - s.x);
+                    ctx.beginPath();
+                    ctx.strokeStyle = "rgba(0, 210, 255, 0.4)";
+                    if (i === j) ctx.arc(s.x + 15, s.y - 15, 12, 0, Math.PI * 2);
+                    else {
+                        ctx.moveTo(s.x, s.y);
+                        ctx.lineTo(e.x, e.y);
+                        
+                        const ax = e.x - nodeRadius * Math.cos(ang);
+                        const ay = e.y - nodeRadius * Math.sin(ang);
+                        ctx.save(); ctx.translate(ax, ay); ctx.rotate(ang);
+                        ctx.moveTo(0,0); ctx.lineTo(-10,-4); ctx.lineTo(-10,4);
+                        ctx.fillStyle="#00d2ff"; ctx.fill(); ctx.restore();
+                    }
+                    ctx.stroke();
+                }
+            });
+        });
+
+      
+        pts.forEach((p, i) => {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, nodeRadius, 0, Math.PI * 2);
+            ctx.fillStyle = "#222"; ctx.fill();
+            ctx.strokeStyle = "#00d2ff"; ctx.stroke();
+            ctx.fillStyle = "#fff"; ctx.font = "bold 12px Arial";
+            ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.fillText(i + 1, p.x, p.y);
+        });
+    </script>
+</body>
+</html>
