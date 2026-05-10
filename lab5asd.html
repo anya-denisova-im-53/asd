@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>ЛР №5 - Покроковий BFS - ІМ-53</title>
+    <style>
+        body { 
+            background: #0f172a; 
+            color: #f8fafc; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            padding: 20px; 
+        }
+        .controls { 
+            margin-bottom: 20px; 
+            background: #1e293b; 
+            padding: 20px; 
+            border-radius: 12px; 
+            border: 1px solid #334155;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        button { 
+            padding: 12px 24px; 
+            cursor: pointer; 
+            background: #38bdf8; 
+            border: none; 
+            border-radius: 8px; 
+            font-weight: bold; 
+            color: #0f172a;
+            transition: background 0.2s;
+        }
+        button:hover { background: #7dd3fc; }
+        button:disabled { background: #475569; cursor: not-allowed; }
+        
+        .log-panel { 
+            width: 600px; 
+            background: #020617; 
+            padding: 20px; 
+            margin-top: 20px; 
+            border-radius: 12px; 
+            border: 1px solid #1e293b; 
+            font-family: 'Courier New', monospace; 
+            line-height: 1.6;
+        }
+        canvas { 
+            background: #020617; 
+            border: 2px solid #1e293b; 
+            border-radius: 20px; 
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        .highlight { color: #38bdf8; font-weight: bold; }
+        .success { color: #4ade80; }
+    </style>
+</head>
+<body>
+
+    <h2>Лабораторна робота №5</h2>
+    <p style="margin-top: -10px; color: #94a3b8;">Група: ІМ-53 | Варіант: 9 | Алгоритм: BFS</p>
+    
+    <div class="controls">
+        <button id="nextBtn">Наступний крок</button>
+        <button onclick="location.reload()" style="background: #ef4444; color: white; margin-left: 10px;">Скинути</button>
+    </div>
+
+    <canvas id="graphCanvas" width="600" height="600"></canvas>
+
+    <div class="log-panel">
+        <div>Черга (Queue): [ <span id="queueDisplay" class="highlight"></span> ]</div>
+        <div>Порядок відвідування: <span id="orderDisplay" class="success"></span></div>
+        <div style="font-size: 0.8em; color: #64748b; margin-top: 10px;">* Матриці кожного кроку доступні в консолі (F12)</div>
+    </div>
+
+    <script>
+        const n = 11;
+        const seed = 5309; 
+        const nodeRadius = 22;
+
+        // Генератор LCG
+        const rand = (function(s) {
+            return function() {
+                s = (s * 16807) % 2147483647;
+                return (s - 1) / 2147483646;
+            };
+        })(seed);
+
+        
+        const A = [];
+        const k = 1.0 - 0 * 0.01 - 9 * 0.005 - 0.15; // k = 0.805
+        for (let i = 0; i < n; i++) {
+            A[i] = [];
+            for (let j = 0; j < n; j++) {
+                A[i][j] = (rand() * 2.0 * k) >= 1.0 ? 1 : 0;
+            }
+        }
+
+       
+        let queue = [0]; 
+        let visited = new Array(n).fill(false);
+        let bfsOrder = [];
+        let activeNode = null;
+        let treeEdges = [];
+        let stepCounter = 0;
+        visited[0] = true;
+
+        
+        const pts = [];
+        for (let i = 0; i < n; i++) {
+            const ang = (2 * Math.PI * i) / n;
+            pts.push({ x: 300 + 240 * Math.cos(ang), y: 300 + 240 * Math.sin(ang) });
+        }
+
+        const canvas = document.getElementById('graphCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function draw() {
+            ctx.clearRect(0, 0, 600, 600);
+            
+            
+            A.forEach((row, i) => {
+                row.forEach((val, j) => {
+                    if (val) {
+                        const isTree = treeEdges.some(e => e.from === i && e.to === j);
+                        ctx.beginPath();
+                        ctx.lineWidth = isTree ? 3 : 1;
+                        ctx.strokeStyle = isTree ? "#4ade80" : "rgba(148, 163, 184, 0.2)";
+                        
+                       
+                        ctx.moveTo(pts[i].x, pts[i].y);
+                        ctx.lineTo(pts[j].x, pts[j].y);
+                        ctx.stroke();
+
+                     
+                        if (!isTree) {
+                            const ang = Math.atan2(pts[j].y - pts[i].y, pts[j].x - pts[i].x);
+                            ctx.fillStyle = "rgba(148, 163, 184, 0.2)";
+                            ctx.save();
+                            ctx.translate(pts[j].x - nodeRadius * Math.cos(ang), pts[j].y - nodeRadius * Math.sin(ang));
+                            ctx.rotate(ang);
+                            ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(-8,-3); ctx.lineTo(-8,3); ctx.fill();
+                            ctx.restore();
+                        }
+                    }
+                });
+            });
+
+          
+            pts.forEach((p, i) => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, nodeRadius, 0, Math.PI * 2);
+                
+                if (i === activeNode) ctx.fillStyle = "#f59e0b"; 
+                else if (bfsOrder.includes(i + 1)) ctx.fillStyle = "#059669"; 
+                else ctx.fillStyle = "#1e293b"; 
+                
+                ctx.fill();
+                ctx.strokeStyle = i === activeNode ? "#fbbf24" : "#38bdf8";
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                ctx.fillStyle = "#fff";
+                ctx.font = "bold 13px Arial";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(i + 1, p.x, p.y);
+            });
+
+            document.getElementById('queueDisplay').innerText = queue.map(v => v + 1).join(", ");
+            document.getElementById('orderDisplay').innerText = bfsOrder.join(" → ");
+        }
+
+        
+        document.getElementById('nextBtn').onclick = function() {
+            if (queue.length === 0) {
+                this.disabled = true;
+                console.log("%c ОБХІД ЗАВЕРШЕНО ", "background: #059669; color: #fff; padding: 5px; font-weight: bold;");
+                return;
+            }
+
+            stepCounter++;
+            activeNode = queue.shift();
+            bfsOrder.push(activeNode + 1);
+
+            console.group(`КРОК №${stepCounter}: Вершина ${activeNode + 1}`);
+            
+            for (let v = 0; v < n; v++) {
+                if (A[activeNode][v] === 1 && !visited[v]) {
+                    visited[v] = true;
+                    queue.push(v);
+                    treeEdges.push({ from: activeNode, to: v });
+                    console.log(`%c + Додано в дерево ребро: ${activeNode + 1} -> ${v + 1}`, "color: #4ade80");
+                }
+            }
+
+            
+            const currentTreeMatrix = Array.from({ length: n }, () => new Array(n).fill(0));
+            treeEdges.forEach(e => { currentTreeMatrix[e.from][e.to] = 1; });
+
+            console.log("Поточна черга:", queue.map(v => v + 1));
+            console.log("Матриця дерева обходу на даному етапі:");
+            console.table(currentTreeMatrix);
+            console.groupEnd();
+
+            draw();
+        };
+
+        console.log("Консоль готова. Натискайте 'Наступний крок' для візуалізації.");
+        draw(); 
+    </script>
+</body>
+</html>
