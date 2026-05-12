@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>ЛР №6 - Алгоритм Дейкстри - ІМ-53</title>
+    <style>
+        body { background: #0f172a; color: #f8fafc; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .controls { margin-bottom: 20px; background: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155; }
+        button { padding: 12px 24px; cursor: pointer; background: #38bdf8; border: none; border-radius: 8px; font-weight: bold; }
+        button:disabled { background: #475569; }
+        canvas { background: #020617; border: 2px solid #1e293b; border-radius: 20px; }
+        .log { margin-top: 20px; font-family: monospace; background: #020617; padding: 15px; border-radius: 10px; border: 1px solid #1e293b; width: 600px; }
+    </style>
+</head>
+<body>
+
+    <h2>Лабораторна робота №6: Алгоритм Дейкстри</h2>
+    <p>Група: ІМ-53 | Варіант: 9 </p>
+    
+    <div class="controls">
+        <button id="nextBtn">Наступний крок (Релаксація)</button>
+        <button onclick="location.reload()" style="background: #ef4444; color: white; margin-left: 10px;">Скинути</button>
+    </div>
+
+    <canvas id="graphCanvas" width="600" height="600"></canvas>
+
+    <div class="log" id="logPanel">
+        Мітки (відстані): <span id="distDisplay" style="color: #38bdf8"></span>
+    </div>
+
+    <script>
+        const n = 11;
+        const seed = 5309;
+        const nodeRadius = 22;
+
+        const rand = (function(s) {
+            return function() {
+                s = (s * 16807) % 2147483647;
+                return (s - 1) / 2147483646;
+            };
+        })(seed);
+
+        
+        const A = [];
+        const W = [];
+        const k = 1.0 - 0 * 0.01 - 9 * 0.005 - 0.15;
+        
+        for (let i = 0; i < n; i++) {
+            A[i] = []; W[i] = [];
+            for (let j = 0; j < n; j++) {
+                A[i][j] = (rand() * 2.0 * k) >= 1.0 ? 1 : 0;
+                // Вага ребра (ціле число від 1 до 100)
+                W[i][j] = A[i][j] ? Math.floor(rand() * 100) + 1 : Infinity;
+            }
+        }
+
+        
+        let dist = new Array(n).fill(Infinity);
+        let visited = new Array(n).fill(false);
+        let startNode = 0;
+        dist[startNode] = 0;
+        let step = 0;
+
+        
+        const pts = [];
+        for (let i = 0; i < n; i++) {
+            const ang = (2 * Math.PI * i) / n;
+            pts.push({ x: 300 + 240 * Math.cos(ang), y: 300 + 240 * Math.sin(ang) });
+        }
+
+        const canvas = document.getElementById('graphCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function draw() {
+            ctx.clearRect(0, 0, 600, 600);
+            
+           
+            for(let i=0; i<n; i++) {
+                for(let j=0; j<n; j++) {
+                    if (A[i][j]) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = "rgba(148, 163, 184, 0.3)";
+                        ctx.moveTo(pts[i].x, pts[i].y);
+                        ctx.lineTo(pts[j].x, pts[j].y);
+                        ctx.stroke();
+
+                        
+                        ctx.fillStyle = "#94a3b8";
+                        ctx.font = "10px Arial";
+                        ctx.fillText(W[i][j], (pts[i].x + pts[j].x)/2, (pts[i].y + pts[j].y)/2);
+                    }
+                }
+            }
+
+            
+            pts.forEach((p, i) => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, nodeRadius, 0, Math.PI * 2);
+                ctx.fillStyle = visited[i] ? "#059669" : "#1e293b";
+                ctx.fill();
+                ctx.strokeStyle = "#38bdf8";
+                ctx.stroke();
+                ctx.fillStyle = "#fff";
+                ctx.textAlign = "center";
+                ctx.fillText(i + 1, p.x, p.y - 2);
+                ctx.fillStyle = "#38bdf8";
+                ctx.font = "bold 10px Arial";
+                ctx.fillText(dist[i] === Infinity ? "∞" : dist[i], p.x, p.y + 10);
+            });
+
+            document.getElementById('distDisplay').innerText = dist.map(d => d === Infinity ? "∞" : d).join(" | ");
+        }
+
+        
+        document.getElementById('nextBtn').onclick = function() {
+           
+            let minWeight = Infinity;
+            let u = -1;
+
+            for (let i = 0; i < n; i++) {
+                if (!visited[i] && dist[i] < minWeight) {
+                    minWeight = dist[i];
+                    u = i;
+                }
+            }
+
+            if (u === -1) {
+                this.disabled = true;
+                alert("Всі доступні шляхи знайдено!");
+                return;
+            }
+
+            visited[u] = true;
+            step++;
+            console.group(`Крок ${step}: Обрано вершину ${u + 1}`);
+
+            for (let v = 0; v < n; v++) {
+                if (!visited[v] && A[u][v] && dist[u] !== Infinity) {
+                    let newDist = dist[u] + W[u][v];
+                    if (newDist < dist[v]) {
+                        console.log(`Релаксація: ${v+1} (було ${dist[v] === Infinity ? '∞' : dist[v]}, стало ${newDist})`);
+                        dist[v] = newDist;
+                    }
+                }
+            }
+            
+            console.log("Поточні мітки:", [...dist]);
+            console.groupEnd();
+            draw();
+        };
+
+        draw();
+        console.log("Матриця ваг W (Варіант 9):");
+        console.table(W);
+    </script>
+</body>
+</html>
